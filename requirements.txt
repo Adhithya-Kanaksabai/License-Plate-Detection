@@ -1,0 +1,10 @@
+flask
+torch
+torchvision
+ultralytics
+roboflow
+opencv-python
+pillow
+numpy
+werkzeug
+easyocr

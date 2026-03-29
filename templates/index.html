@@ -1,0 +1,461 @@
+<!DOCTYPE html>
+<html lang="en">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>License Plate Detection | Ensemble AI Prototype</title>
+    <link href="https://fonts.googleapis.com/css2?family=Inter:wght@300;400;600;800&display=swap" rel="stylesheet">
+    <style>
+        :root {
+            --bg: #0f172a;
+            --card-bg: #1e293b;
+            --primary: #3b82f6;
+            --success: #22c55e;
+            --warning: #f59e0b;
+            --danger: #ef4444;
+            --text-main: #f8fafc;
+            --text-dim: #94a3b8;
+        }
+
+        * {
+            box-sizing: border-box;
+            margin: 0;
+            padding: 0;
+            font-family: 'Inter', sans-serif;
+        }
+
+        body {
+            background-color: var(--bg);
+            color: var(--text-main);
+            min-height: 100vh;
+            display: flex;
+            flex-direction: column;
+            padding: 2rem;
+        }
+
+        header {
+            text-align: center;
+            margin-bottom: 3rem;
+        }
+
+        h1 {
+            font-size: 2.5rem;
+            font-weight: 800;
+            background: linear-gradient(to right, #60a5fa, #a78bfa);
+            -webkit-background-clip: text;
+            -webkit-text-fill-color: transparent;
+            margin-bottom: 0.5rem;
+        }
+
+        .subtitle {
+            color: var(--text-dim);
+            font-size: 1.1rem;
+        }
+
+        /* Upload Section */
+        .upload-container {
+            max-width: 800px;
+            margin: 0 auto 3rem auto;
+            width: 100%;
+        }
+
+        .drop-zone {
+            background-color: var(--card-bg);
+            border: 2px dashed #475569;
+            border-radius: 1rem;
+            padding: 3rem;
+            text-align: center;
+            cursor: pointer;
+            transition: all 0.3s ease;
+            position: relative;
+        }
+
+        .drop-zone:hover, .drop-zone.dragover {
+            border-color: var(--primary);
+            background-color: #1e293b;
+        }
+
+        .drop-zone h3 {
+            margin-top: 1rem;
+            font-size: 1.25rem;
+        }
+
+        .preview-img {
+            max-width: 100%;
+            max-height: 300px;
+            border-radius: 0.5rem;
+            margin-top: 2rem;
+            display: none;
+            box-shadow: 0 10px 15px -3px rgba(0, 0, 0, 0.5);
+        }
+
+        /* Results Section */
+        .results-grid {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(300px, 1fr));
+            gap: 1.5rem;
+            margin-bottom: 3rem;
+            display: none; /* Shown after prediction */
+        }
+
+        .card {
+            background-color: var(--card-bg);
+            border-radius: 1rem;
+            padding: 1.5rem;
+            border-top: 4px solid var(--primary);
+            transition: transform 0.3s ease;
+        }
+
+        .card:hover {
+            transform: translateY(-5px);
+        }
+
+        .card.resnet { border-top-color: var(--success); }
+        .card.mobile { border-top-color: var(--warning); }
+
+        .card-header {
+            display: flex;
+            justify-content: space-between;
+            align-items: center;
+            margin-bottom: 1rem;
+        }
+
+        .badge {
+            font-size: 0.75rem;
+            padding: 0.25rem 0.6rem;
+            border-radius: 9999px;
+            background-color: #334155;
+            color: var(--text-dim);
+        }
+
+        .status-badge {
+            font-weight: 600;
+            font-size: 0.9rem;
+        }
+
+        .status-detected { color: var(--success); }
+        .status-not { color: var(--danger); }
+
+        .annotated-img {
+            width: 100%;
+            height: 200px;
+            object-fit: cover;
+            border-radius: 0.5rem;
+            margin-bottom: 1rem;
+            background-color: #000;
+        }
+
+        .progress-container {
+            margin: 1rem 0;
+        }
+
+        .progress-bar {
+            height: 8px;
+            background-color: #334155;
+            border-radius: 4px;
+            overflow: hidden;
+        }
+
+        .progress-fill {
+            height: 100%;
+            background-color: var(--primary);
+            width: 0%;
+            transition: width 1s cubic-bezier(0.4, 0, 0.2, 1);
+        }
+
+        .card.resnet .progress-fill { background-color: var(--success); }
+        .card.mobile .progress-fill { background-color: var(--warning); }
+
+        .meta-info {
+            font-size: 0.85rem;
+            color: var(--text-dim);
+            margin-top: 0.5rem;
+        }
+
+        /* Final Verdict */
+        .verdict-section {
+            background: linear-gradient(135deg, #1e293b 0%, #0f172a 100%);
+            border-radius: 1.5rem;
+            padding: 2.5rem;
+            text-align: center;
+            border: 1px solid #334155;
+            margin-bottom: 4rem;
+            display: none;
+        }
+
+        .verdict-title {
+            font-size: 2.5rem;
+            font-weight: 800;
+            margin-bottom: 0.5rem;
+        }
+
+        .verdict-sub {
+            font-size: 1.25rem;
+            color: var(--text-dim);
+        }
+
+        /* Footer Info */
+        .footer-info {
+            display: grid;
+            grid-template-columns: repeat(auto-fit, minmax(250px, 1fr));
+            gap: 2rem;
+            border-top: 1px solid #1e293b;
+            padding-top: 3rem;
+            margin-top: auto;
+        }
+
+        .info-block h4 {
+            margin-bottom: 0.75rem;
+            color: var(--primary);
+        }
+
+        .info-block p {
+            font-size: 0.9rem;
+            color: var(--text-dim);
+            line-height: 1.5;
+        }
+
+        /* Loading Spinner */
+        #loading {
+            display: none;
+            margin: 2rem auto;
+            width: 50px;
+            height: 50px;
+            border: 5px solid #1e293b;
+            border-top: 5px solid var(--primary);
+            border-radius: 50%;
+            animation: spin 1s linear infinite;
+        }
+
+        @keyframes spin {
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
+        }
+
+    </style>
+</head>
+<body>
+
+    <header>
+        <h1>ALPR Ensemble Prototype</h1>
+        <p class="subtitle">Multi-Model License Plate Detection & Technical Validation</p>
+    </header>
+
+    <div class="upload-container">
+        <div class="drop-zone" id="drop-zone">
+            <svg width="60" height="60" viewBox="0 0 24 24" fill="none" stroke="#475569" stroke-width="2" stroke-linecap="round" stroke-linejoin="round">
+                <path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"></path>
+                <polyline points="17 8 12 3 7 8"></polyline>
+                <line x1="12" y1="3" x2="12" y2="15"></line>
+            </svg>
+            <h3>Drag & Drop Vehicle Image</h3>
+            <p style="color:var(--text-dim)">or click to browse local files</p>
+            <input type="file" id="file-input" hidden accept="image/*">
+            <img src="" id="img-preview" class="preview-img">
+        </div>
+        <div id="loading"></div>
+    </div>
+
+    <div class="results-grid" id="results-grid">
+        <!-- YOLOv8 Card -->
+        <div class="card yolo">
+            <div class="card-header">
+                <div>
+                    <h2 id="yolo-label">YOLOv8</h2>
+                    <span class="badge">Object Detection</span>
+                </div>
+                <div class="status-badge" id="yolo-status">...</div>
+            </div>
+            <img src="" id="yolo-img" class="annotated-img">
+            <div class="progress-container">
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem">
+                    <span style="font-size:0.8rem">Confidence</span>
+                    <span style="font-size:0.8rem; font-weight:bold" id="yolo-conf-text">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="yolo-progress"></div>
+                </div>
+            </div>
+            <p class="meta-info" id="yolo-desc">...</p>
+        </div>
+
+        <!-- ResNet50 Card -->
+        <div class="card resnet">
+            <div class="card-header">
+                <div>
+                    <h2>ResNet50</h2>
+                    <span class="badge">Residual Learning</span>
+                </div>
+                <div class="status-badge" id="resnet-status">...</div>
+            </div>
+            <div style="height:200px; display:flex; align-items:center; justify-content:center; background:#000; border-radius:0.5rem; margin-bottom:1rem">
+                <span style="color:var(--text-dim); font-size:0.8rem">Classification Backbone</span>
+            </div>
+            <div class="progress-container">
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem">
+                    <span style="font-size:0.8rem">Activation Strength</span>
+                    <span style="font-size:0.8rem; font-weight:bold" id="resnet-conf-text">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="resnet-progress"></div>
+                </div>
+            </div>
+            <p class="meta-info" id="resnet-desc">...</p>
+        </div>
+
+        <!-- MobileNetV2 Card -->
+        <div class="card mobile">
+            <div class="card-header">
+                <div>
+                    <h2>MobileNetV2</h2>
+                    <span class="badge">Inverted Residuals</span>
+                </div>
+                <div class="status-badge" id="mobile-status">...</div>
+            </div>
+            <div style="height:200px; display:flex; flex-direction:column; align-items:center; justify-content:center; background:#000; border-radius:0.5rem; margin-bottom:1rem">
+                <span style="color:var(--text-dim); font-size:0.8rem">Lightweight Feature Extractor</span>
+                <div style="margin-top:1rem; color:var(--warning); font-size:1.1rem; font-weight:bold" id="mobile-time">0 ms</div>
+            </div>
+            <div class="progress-container">
+                <div style="display:flex; justify-content:space-between; margin-bottom:0.5rem">
+                    <span style="font-size:0.8rem">Feature Mapping</span>
+                    <span style="font-size:0.8rem; font-weight:bold" id="mobile-conf-text">0%</span>
+                </div>
+                <div class="progress-bar">
+                    <div class="progress-fill" id="mobile-progress"></div>
+                </div>
+            </div>
+            <p class="meta-info" id="mobile-desc">...</p>
+        </div>
+    </div>
+
+    <div class="verdict-section" id="verdict-section">
+        <div class="verdict-title" id="final-status">PLATE DETECTED</div>
+        <div class="verdict-sub" id="final-agreement">2 out of 3 models agree</div>
+        <div style="margin-top: 1.5rem; display:inline-block; background:rgba(255,255,255,0.05); padding: 0.5rem 1.5rem; border-radius: 2rem">
+            Average Confidence: <span style="font-weight:bold; color:var(--primary)" id="final-conf">0%</span>
+        </div>
+    </div>
+
+    <footer class="footer-info">
+        <div class="info-block">
+            <h4>CNN Architecture</h4>
+            <p>Convolutional Neural Networks are the foundation of vision AI, using sliding filters to automatically learn visual hierarchies from pixels to complex objects.</p>
+        </div>
+        <div class="info-block">
+            <h4>Transfer Learning</h4>
+            <p>We leverage models pretrained on millions of images (ImageNet), adapting their deep feature extractors for specialized license plate recognition tasks.</p>
+        </div>
+        <div class="info-block">
+            <h4>Object Detection</h4>
+            <p>YOLO (You Only Look Once) reframes detection as a regression problem, predicting bounding boxes and class probabilities simultaneously in one pass.</p>
+        </div>
+    </footer>
+
+    <script>
+        const dropZone = document.getElementById('drop-zone');
+        const fileInput = document.getElementById('file-input');
+        const imgPreview = document.getElementById('img-preview');
+        const loading = document.getElementById('loading');
+        const resultsGrid = document.getElementById('results-grid');
+        const verdictSection = document.getElementById('verdict-section');
+
+        dropZone.onclick = () => fileInput.click();
+
+        fileInput.onchange = (e) => {
+            const file = e.target.files[0];
+            if (file) handleUpload(file);
+        };
+
+        dropZone.ondragover = (e) => {
+            e.preventDefault();
+            dropZone.classList.add('dragover');
+        };
+
+        dropZone.ondragleave = () => dropZone.classList.remove('dragover');
+
+        dropZone.ondrop = (e) => {
+            e.preventDefault();
+            dropZone.classList.remove('dragover');
+            const file = e.dataTransfer.files[0];
+            if (file) handleUpload(file);
+        };
+
+        async function handleUpload(file) {
+            // Show preview
+            const reader = new FileReader();
+            reader.onload = (e) => {
+                imgPreview.src = e.target.result;
+                imgPreview.style.display = 'block';
+            };
+            reader.readAsDataURL(file);
+
+            // UI Reset
+            resultsGrid.style.display = 'none';
+            verdictSection.style.display = 'none';
+            loading.style.display = 'block';
+
+            const formData = new FormData();
+            formData.append('file', file);
+
+            try {
+                const response = await fetch('/predict', {
+                    method: 'POST',
+                    body: formData
+                });
+                const data = await response.json();
+                
+                if (data.error) {
+                    alert(data.error);
+                    return;
+                }
+
+                displayResults(data);
+            } catch (err) {
+                console.error(err);
+                alert("An error occurred during detection.");
+            } finally {
+                loading.style.display = 'none';
+            }
+        }
+
+        function displayResults(data) {
+            // Show sections
+            resultsGrid.style.display = 'grid';
+            verdictSection.style.display = 'block';
+
+            // YOLO
+            document.getElementById('yolo-status').innerHTML = data.yolo.detected ? '✅ DETECTED' : '❌ NOT FOUND';
+            document.getElementById('yolo-status').className = 'status-badge ' + (data.yolo.detected ? 'status-detected' : 'status-not');
+            document.getElementById('yolo-img').src = data.yolo.annotated_url + '?t=' + new Date().getTime();
+            document.getElementById('yolo-conf-text').innerText = data.yolo.confidence + '%';
+            document.getElementById('yolo-progress').style.width = data.yolo.confidence + '%';
+            document.getElementById('yolo-desc').innerText = data.yolo.description;
+
+            // ResNet
+            document.getElementById('resnet-status').innerHTML = data.resnet.detected ? '✅ DETECTED' : '❌ NOT FOUND';
+            document.getElementById('resnet-status').className = 'status-badge ' + (data.resnet.detected ? 'status-detected' : 'status-not');
+            document.getElementById('resnet-conf-text').innerText = data.resnet.confidence + '%';
+            document.getElementById('resnet-progress').style.width = data.resnet.confidence + '%';
+            document.getElementById('resnet-desc').innerText = data.resnet.description;
+
+            // MobileNet
+            document.getElementById('mobile-status').innerHTML = data.mobilenet.detected ? '✅ DETECTED' : '❌ NOT FOUND';
+            document.getElementById('mobile-status').className = 'status-badge ' + (data.mobilenet.detected ? 'status-detected' : 'status-not');
+            document.getElementById('mobile-conf-text').innerText = data.mobilenet.confidence + '%';
+            document.getElementById('mobile-progress').style.width = data.mobilenet.confidence + '%';
+            document.getElementById('mobile-time').innerText = data.mobilenet.inference_time + ' ms';
+            document.getElementById('mobile-desc').innerText = data.mobilenet.description;
+
+            // Verdict
+            const finalStatus = document.getElementById('final-status');
+            finalStatus.innerText = data.ensemble.detected ? 'PLATE DETECTED' : 'NO PLATE DETECTED';
+            finalStatus.style.color = data.ensemble.detected ? 'var(--success)' : 'var(--danger)';
+            document.getElementById('final-agreement').innerText = data.ensemble.agree_count;
+            document.getElementById('final-conf').innerText = data.ensemble.avg_confidence + '%';
+
+            verdictSection.scrollIntoView({ behavior: 'smooth' });
+        }
+    </script>
+</body>
+</html>
